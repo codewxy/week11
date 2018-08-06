@@ -62,7 +62,7 @@ with tf.Session() as sess:
             feed_dict = {
             model.X : utils.index_data(dl[0], dictionary),
             model.Y : utils.index_data(dl[1], dictionary),
-            model.keep_prob : FLAGS.keep_prob,
+            model.keep_prob : 0.5,
             }
             for i, (c, h) in enumerate(model.state_tensor):
                 feed_dict[c] = state[i].c  
