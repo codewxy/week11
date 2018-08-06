@@ -29,11 +29,15 @@ import numpy as np
 from six.moves import urllib
 from six.moves import xrange  # pylint: disable=redefined-builtin
 import tensorflow as tf
-from flags import parse_args
+import json
+
+from pylab import mpl
+#修改ubuntu字体用来兼容中文显示
+zhfont = mpl.font_manager.FontProperties(fname='/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc')
 
 # Step 1: Download the data.
 url = 'http://mattmahoney.net/dc/'
-
+input_file_name = './QuanSongCi.txt'
 
 # pylint: disable=redefined-outer-name
 def maybe_download(filename, expected_bytes):
@@ -71,15 +75,15 @@ def read_data(filename):
 # vocabulary = read_data(filename)
 # print('Data size', len(vocabulary))
 
-FLAGS, unparsed = parse_args()
-vocabulary = read_data(FLAGS.text)
+vocabulary = read_data(input_file_name)
 print('Data size', len(vocabulary))
 
 # Step 2: Build the dictionary and replace rare words with UNK token.
 vocabulary_size = 5000  #修改成5000
 
-#将words集合中的单词按频数排序，将频率最高的前n_words-1个单词以及他们的出现的个数按顺序输出到count中，
-# 将频数排在n_words-1之后的单词设为UNK。同时，count的规律为索引越小，单词出现的频率越高
+# 将words集合中的单词按频数排序，查找出前n_words-1个出现频率最高的元素以及它们对于的次数存入count中，
+# 将频数排在n_words-1之后的单词设为UNK。
+# count的规律为索引越小，单词出现的频率越高
 def build_dataset(words, n_words):
   """Process raw inputs into a dataset."""
   count = [['UNK', -1]]
@@ -88,8 +92,9 @@ def build_dataset(words, n_words):
   dictionary = dict()
   for word, _ in count:
     dictionary[word] = len(dictionary)
-  # 全部单词转为编号
-  # 先判断这个单词是否出现在dictionary，如果是，就转成编号，如果不是，则转为编号0（代表UNK）
+  # 把频率靠前的字的频率按照排序改为排列序号
+  # 先判断这个字是否出现在dictionary，
+  # 如果出现，就就把序号存入data，如果不存在，将UNK的数量加一
   data = list()
   unk_count = 0
   for word in words:
@@ -109,6 +114,20 @@ def build_dataset(words, n_words):
 # reverse_dictionary - maps codes(integers) to words(strings)
 data, count, dictionary, reverse_dictionary = build_dataset(vocabulary,
                                                             vocabulary_size)
+
+															
+#导出文字索引字典
+with open('./dictionary.json', "w") as f:
+  jsObj = json.dumps(dictionary,ensure_ascii=False,indent=4)
+  f.write(jsObj)
+  f.close()
+
+with open('./reverse_dictionary.json', "w") as f:
+  jsObj = json.dumps(reverse_dictionary,ensure_ascii=False,indent=4)
+  f.write(jsObj)
+  f.close()
+															
+															
 del vocabulary  # Hint to reduce memory. 删除原始单词列表，节约内存
 print('Most common words (+UNK)', count[:5])
 print('Sample data', data[:10], [reverse_dictionary[i] for i in data[:10]])
@@ -124,14 +143,15 @@ def generate_batch(batch_size, num_skips, skip_window):
   assert batch_size % num_skips == 0  #batch_size必须是num_skips的整数倍,这样可以确保由一个目标词汇生成的样本在同一个批次中。
   assert num_skips <= 2 * skip_window #可以联系的距离（skip_window）必须满足每个单词生成样本数量（num_skips）的要求，即可以联系的距离（可以往左也可以往右，所以×2）要大于等于要生成样本数量
   batch = np.ndarray(shape=(batch_size), dtype=np.int32) #建一个batch大小的数组，保存任意单词
-  labels = np.ndarray(shape=(batch_size, 1), dtype=np.int32) #建一个（batch，1）大小的二维数组，保存任意单词前一个或者后一个单词，从而形成一个pair
+  labels = np.ndarray(shape=(batch_size, 1), dtype=np.int32) #建一个（batch，1）大小的二维数组，保存任意单词前一个或者后一个单词，从而形成一个 对儿
   span = 2 * skip_window + 1  # [ skip_window target skip_window ]
-  buffer = collections.deque(maxlen=span) #deque还可以设置队列的长度，使用 deque(maxlen=N) 构造函数会新建一个固定大小的队列。当新的元素加入并且这个队列已满的时候， 最老的元素会自动被移除掉
-  if data_index + span > len(data): #如果索引超过了数据长度，则重新从数据头部开始
+  #deque还可以设置队列的长度，使用 deque(maxlen=N) 构造函数会新建一个固定大小的队列。当新的元素加入并且这个队列已满的时候，最旧元素会自动被移除掉
+  buffer = collections.deque(maxlen=span)
+  if data_index + span > len(data): #如果索引超过了data长度，则重新从数据头部开始
     data_index = 0
   buffer.extend(data[data_index:data_index + span]) #将数据index到index+3段赋值给buffer，大小刚好为span
   data_index += span  #将index向后移3位
-  for i in range(batch_size // num_skips):   #128//2 四舍五入       每个批次训练样本数量//每个单词生成样本数量  即要遍历几个单词
+  for i in range(batch_size // num_skips):   #128//2 向下取整  每个批次训练样本数量//每个单词生成样本数量  即要遍历几个单词
     context_words = [w for w in range(span) if w != skip_window]  #[0,2]
     words_to_use = random.sample(context_words, num_skips)
     for j, context_word in enumerate(words_to_use):
@@ -140,7 +160,7 @@ def generate_batch(batch_size, num_skips, skip_window):
     if data_index == len(data): #  如果到达数据尾部
       # buffer[:] = data[:span] #重新开始，将数据前三位存入buffer中
       # 简单理解就是，不断累加的data_index等于len(data)时，就是滑窗滑到最后3个字母了
-      # 这时要把他们匹配成batch和labels,就需要都放到deque中去，巴拉巴拉
+      # 这时要把他们匹配成batch和labels,就需要都放到deque中去
       for word in data[:span]: # 取最后3个字母
         buffer.append(word)    # 塞到deque中，将原来的挤出去
       data_index = span        # 如此往复循环，当语料太少时，会重复生成
@@ -167,10 +187,10 @@ batch_size = 128      #每个批次训练多少样本
 embedding_size = 128  # Dimension of the embedding vector. 要生成的词向量维度
 
 skip_window = 1       # How many words to consider left and right.
-                      # 单词最远可以联系的距离（本次实验设为1，即目标单词只能和相邻的两个单词生成样本），2*skip_window>=num_skips
+                      # 单个字最远可以联系的距离（本次实验设为1，即目标字只能和相邻的两个字生成样本），2*skip_window>=num_skips
 
 num_skips = 2         # How many times to reuse an input to generate a label.
-                      #为每个单词生成多少样本（本次实验是2个），batch_size必须是num_skips的整数倍,这样可以确保由一个目标词汇生成的样本在同一个批次中。
+                      # 为每个字生成多少样本（本次实验是2个），batch_size必须是num_skips的整数倍,这样可以确保由一个目标词汇生成的样本在同一个批次中。
 
 num_sampled = 64      # Number of negative examples to sample.
 
@@ -245,7 +265,7 @@ with graph.as_default():
   init = tf.global_variables_initializer()
 
 # Step 5: Begin training.
-num_steps = 100001
+num_steps = 400001
 
 with tf.Session(graph=graph) as session:
   # We must initialize all variables before we use them.
@@ -283,7 +303,9 @@ with tf.Session(graph=graph) as session:
           log_str = '%s %s,' % (log_str, close_word)
         print(log_str)
   final_embeddings = normalized_embeddings.eval()
-
+  #保存embedding文件
+  np.save('embedding.npy', final_embeddings)
+  
 # Step 6: Visualize the embeddings.
 
 
@@ -300,7 +322,8 @@ def plot_with_labels(low_dim_embs, labels, filename):
                  xytext=(5, 2),
                  textcoords='offset points',
                  ha='right',
-                 va='bottom')
+                 va='bottom',
+				 fontproperties=zhfont)
 
   plt.savefig(filename)
 
@@ -313,7 +336,7 @@ try:
   plot_only = 500
   low_dim_embs = tsne.fit_transform(final_embeddings[:plot_only, :])
   labels = [reverse_dictionary[i] for i in xrange(plot_only)]
-  plot_with_labels(low_dim_embs, labels, os.path.join(gettempdir(), 'tsne.png'))
+  plot_with_labels(low_dim_embs, labels, './tsne_w11.png')
 
 except ImportError as ex:
   print('Please install sklearn, matplotlib, and scipy to show embeddings.')
