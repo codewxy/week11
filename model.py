@@ -6,7 +6,8 @@ import tensorflow as tf
 
 
 class Model():
-    def __init__(self, learning_rate=0.001, batch_size=16, num_steps=32, num_words=5000, dim_embedding=128, rnn_layers=3):
+    def __init__(self, learning_rate=0.001, batch_size=16, num_steps=32, 
+                 num_words=5000, dim_embedding=128, rnn_layers=3):
         r"""初始化函数
 
         Parameters
@@ -66,9 +67,10 @@ class Model():
             cell = tf.nn.rnn_cell.MultiRNNCell([lstm_cell] * self.rnn_layers, state_is_tuple=True)
             self.state_tensor = cell.zero_state(self.batch_size, dtype=tf.float32)
             seq_output, final_state = tf.nn.dynamic_rnn(cell, data, initial_state=self.state_tensor, scope='rnnlm')
-            ##################
+            
             self.outputs_state_tensor = final_state
-        # flatten it
+            ##################
+        # flatten it #3x32x128 -> 96x128
         seq_output_final = tf.reshape(seq_output, [-1, self.dim_embedding])
 
         with tf.variable_scope('softmax'):
@@ -79,12 +81,13 @@ class Model():
             softmax_b = tf.get_variable("softmax_b", [self.num_words], dtype=tf.float32)
             # 96x128 -> 96x32
             logits = tf.matmul(seq_output_final, softmax_w) + softmax_b 
-			##################
+
+            ##################
         tf.summary.histogram('logits', logits)
 
         self.predictions = tf.nn.softmax(logits, name='predictions')
 
-        loss = tf.nn.sparse_softmax_cross_entropy_with_logits(labels=tf.reshape(self.Y, [-1])
+        loss = tf.nn.sparse_softmax_cross_entropy_with_logits(logits=logits, labels=tf.reshape(self.Y, [-1]))
         mean, var = tf.nn.moments(logits, -1)
         self.loss = tf.reduce_mean(loss)
         tf.summary.scalar('logits_loss', self.loss)
