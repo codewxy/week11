@@ -34,11 +34,40 @@ embedding 就是将自然语言间的联系用数学向量表示在空间坐标�
 
 模型地址：https://www.tinymind.com/code-wxy/week11
 
-训练模型运行结果：
-
-验证模型结果：
+模型运行结果：https://www.tinymind.com/executions/nfmn3yq1
 
 log文件：
+
+```tex
+2018-08-07 06:31:01.934898: I tensorflow/core/platform/cpu_feature_guard.cc:140] Your CPU supports instructions that this TensorFlow binary was not compiled to use: SSE4.1 SSE4.2 AVX AVX2 FMA
+2018-08-07 06:31:02.009988: I tensorflow/stream_executor/cuda/cuda_gpu_executor.cc:898] successful NUMA node read from SysFS had negative value (-1), but there must be at least one NUMA node, so returning NUMA node zero
+2018-08-07 06:31:02.010376: I tensorflow/core/common_runtime/gpu/gpu_device.cc:1212] Found device 0 with properties: 
+name: Tesla K80 major: 3 minor: 7 memoryClockRate(GHz): 0.8235
+pciBusID: 0000:00:04.0
+totalMemory: 11.17GiB freeMemory: 11.09GiB
+2018-08-07 06:31:02.010429: I tensorflow/core/common_runtime/gpu/gpu_device.cc:1312] Adding visible gpu devices: 0
+2018-08-07 06:31:02.283508: I tensorflow/core/common_runtime/gpu/gpu_device.cc:993] Creating TensorFlow device (/job:localhost/replica:0/task:0/device:GPU:0 with 10751 MB memory) -> physical GPU (device: 0, name: Tesla K80, pci bus id: 0000:00:04.0, compute capability: 3.7)
+2018-08-07 06:31:02,735 - DEBUG - sample.py:41 - Initialized
+INFO:tensorflow:Restoring parameters from /output/model.ckpt-29700
+2018-08-07 06:31:02,741 - INFO - tf_logging.py:116 - Restoring parameters from /output/model.ckpt-29700
+2018-08-07 06:31:02,767 - DEBUG - sample.py:46 - restore from [/output/model.ckpt-29700]
+2018-08-07 06:31:03,203 - DEBUG - sample.py:81 - ==============[江神子]==============
+2018-08-07 06:31:03,203 - DEBUG - sample.py:82 - 江神子一年人，一里春风。
+
+
+
+
+
+刘UNK
+
+水调歌头（寿韵）
+
+一里风风，一里一番，一番风雨。一里风花，一番一里，一片春风。
+
+一年一
+```
+
+
 
 ### 2.理解
 
@@ -46,5 +75,5 @@ log文件：
 
 ### 3.心得体会
 
-本次作业有点拖沓，想比较前面的作业，感觉这个作业结构稍微复杂一点，开始有点蒙，慢慢理了一遍。至于写诗机器人，代码中我使用了word embeding作业中生成的embeding_file.npy ，最后的写诗的效果不是很好，按照作业最基本的完成，没进行优化。
+本次作业有点拖沓，想比较前面的作业，感觉这个作业结构稍微复杂一点，开始有点蒙，慢慢理了一遍。至于写诗机器人，代码中我使用了word embeding作业中生成的embeding_file.npy ，最后的写诗的效果不是很好,注意到出现了很多空格，由于没有进行文字的处理，导致空格很多不是很美观，写出的诗还算过得去，哈哈，作业的基本是完成了，没有进行优化。
 
